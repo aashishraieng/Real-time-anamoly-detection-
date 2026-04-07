@@ -7,18 +7,33 @@ app = Flask(__name__)
 
 # -------- SHARED DATA --------
 live_data = []
+ip_stats = {}
 
-# -------- PACKET PROCESSING --------
 packet_count = 0
 start_time = time.time()
 
+# -------- PACKET PROCESSING --------
 def process_packet(packet):
-    global packet_count, start_time
+    global packet_count, start_time, ip_stats
 
-    packet_count += 1
+    if not packet.haslayer("IP"):
+        return
+
+    src_ip = packet["IP"].src
+    dst_ip = packet["IP"].dst
+
     size = len(packet)
     proto = packet.proto if hasattr(packet, "proto") else 0
 
+    # track IP stats
+    if src_ip not in ip_stats:
+        ip_stats[src_ip] = {"count": 0, "bytes": 0}
+
+    ip_stats[src_ip]["count"] += 1
+    ip_stats[src_ip]["bytes"] += size
+
+    # rate calculation
+    packet_count += 1
     current_time = time.time()
     elapsed = current_time - start_time
 
@@ -29,23 +44,35 @@ def process_packet(packet):
     else:
         rate = 0
 
+    # -------- DETECTION --------
     anomaly = False
+    reason = "Normal"
 
-    if size > 1000:
+    if ip_stats[src_ip]["count"] > 50:
         anomaly = True
-    if rate > 50:
+        reason = "High traffic from IP"
+
+    elif size > 1200:
         anomaly = True
+        reason = "Large packet"
+
+    elif rate > 80:
+        anomaly = True
+        reason = "Possible flood"
 
     result = {
+        "src": src_ip,
+        "dst": dst_ip,
         "size": size,
         "proto": proto,
         "rate": round(rate, 2),
-        "anomaly": anomaly
+        "anomaly": anomaly,
+        "status": "🚨" if anomaly else "Normal",
+        "reason": reason
     }
 
     live_data.append(result)
 
-    # keep last 50 entries only
     if len(live_data) > 50:
         live_data.pop(0)
 
@@ -64,10 +91,17 @@ def home():
     <html>
     <head>
         <title>Live Network Dashboard</title>
+        <meta http-equiv="refresh" content="3">
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+        <style>
+            body { font-family: Arial; text-align: center; }
+            table { margin: auto; border-collapse: collapse; }
+            th, td { border: 1px solid black; padding: 6px; }
+        </style>
     </head>
 
-    <body style="font-family: Arial; text-align: center;">
+    <body>
 
         <h1>🔥 Live Network Anomaly Detection</h1>
 
@@ -93,26 +127,26 @@ def home():
 
         <h2>Recent Packets</h2>
 
-        <table border="1" style="margin:auto;">
+        <table>
             <tr>
+                <th>Source IP</th>
+                <th>Destination IP</th>
                 <th>Size</th>
                 <th>Protocol</th>
                 <th>Rate</th>
                 <th>Status</th>
+                <th>Reason</th>
             </tr>
 
             {% for row in data %}
             <tr>
+                <td>{{row.src}}</td>
+                <td>{{row.dst}}</td>
                 <td>{{row.size}}</td>
                 <td>{{row.proto}}</td>
                 <td>{{row.rate}}</td>
-                <td>
-                    {% if row.anomaly %}
-                        🚨
-                    {% else %}
-                        Normal
-                    {% endif %}
-                </td>
+                <td>{{row.status}}</td>
+                <td>{{row.reason}}</td>
             </tr>
             {% endfor %}
         </table>
