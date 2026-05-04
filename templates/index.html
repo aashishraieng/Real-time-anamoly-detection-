@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DefendNet | Anomaly Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js for charts if needed -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar">
+            <div class="logo">
+                <i class="fa-solid fa-shield-halved"></i>
+                <h2>DefendNet</h2>
+            </div>
+            <ul class="nav-links">
+                <li class="active" data-view="live-view"><i class="fa-solid fa-network-wired"></i> Live Traffic</li>
+                <li data-view="attacks-view"><i class="fa-solid fa-triangle-exclamation"></i> Attack Traffic</li>
+                <li data-view="models-view"><i class="fa-solid fa-brain"></i> ML Models</li>
+                <li data-view="csv-view"><i class="fa-solid fa-file-csv"></i> Offline Dataset</li>
+            </ul>
+            <div class="sidebar-attacks-container">
+                <div class="sidebar-attacks-header">
+                    <i class="fa-solid fa-bolt"></i> Recent Attacks
+                </div>
+                <div id="sidebar-attacks-feed" class="sidebar-attacks-feed">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content Area -->
+        <div class="main-wrapper">
+            <!-- Top Bar -->
+            <header class="top-bar">
+                <div class="top-title">Network Anomaly Detection</div>
+                <div class="sniffer-controls">
+                    <div class="status-indicator">
+                        <span id="status-dot" class="dot stopped"></span>
+                        <span id="status-text">Stopped</span>
+                    </div>
+                    <div class="btn-group">
+                        <button id="btn-start" class="btn-primary"><i class="fa-solid fa-play"></i> Start</button>
+                        <button id="btn-stop" class="btn-danger"><i class="fa-solid fa-stop"></i> Stop</button>
+                    </div>
+                </div>
+            </header>
+
+            <main class="content-area">
+            
+            <!-- View: Live Traffic -->
+            <section id="live-view" class="view-section active">
+                <header>
+                    <h1>Real-Time Network Flows</h1>
+                    <p>Monitoring active packet inflows and tracking connection statuses.</p>
+                </header>
+                <div class="table-container">
+                    <table class="glass-table">
+                        <thead>
+                            <tr>
+                                <th>Source</th>
+                                <th>Destination</th>
+                                <th>Protocol</th>
+                                <th>Duration (s)</th>
+                                <th>Packets</th>
+                                <th>Bytes</th>
+                                <th>Pkt/Sec</th>
+                                <th>Bytes/Sec</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="live-table-body">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- View: Attacks -->
+            <section id="attacks-view" class="view-section">
+                <header>
+                    <h1>Detected Attack Traffic</h1>
+                    <p>Isolated history of malicious or anomalous network flooding and anomalies.</p>
+                </header>
+                <div class="table-container">
+                    <table class="glass-table danger-table">
+                        <thead>
+                            <tr>
+                                <th>Source IP</th>
+                                <th>Target IP</th>
+                                <th>Protocol</th>
+                                <th>Pkt/Sec</th>
+                                <th>Bytes/Sec</th>
+                                <th>Time Flagged</th>
+                                <th>Reason</th>
+                            </tr>
+                        </thead>
+                        <tbody id="attacks-table-body">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- View: ML Models -->
+            <section id="models-view" class="view-section">
+                <header>
+                    <h1>Machine Learning Evaluator</h1>
+                    <p>Evaluate the accuracy and real-world classification metrics of our AI algorithms.</p>
+                </header>
+                
+                <div class="model-selector">
+                    <select id="model-select" class="glass-input">
+                        <option value="Isolation Forest">Isolation Forest</option>
+                        <option value="LOF">Local Outlier Factor (LOF)</option>
+                        <option value="Autoencoder">Neural Autoencoder (PyTorch)</option>
+                        <option value="Hybrid (IF + AE)">Hybrid Fusion Model</option>
+                    </select>
+                    <button id="btn-eval" class="btn-primary"><i class="fa-solid fa-cogs"></i> Evaluate Metrics</button>
+                </div>
+
+                <div id="eval-loading" class="hidden">
+                    <i class="fa-solid fa-circle-notch fa-spin"></i> Processing algorithms against test data...
+                </div>
+
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <h3>Accuracy</h3>
+                        <div class="val" id="metric-acc">--</div>
+                    </div>
+                    <div class="metric-card">
+                        <h3>Precision</h3>
+                        <div class="val" id="metric-prec">--</div>
+                    </div>
+                    <div class="metric-card">
+                        <h3>Recall</h3>
+                        <div class="val" id="metric-rec">--</div>
+                    </div>
+                    <div class="metric-card">
+                        <h3>F1-Score</h3>
+                        <div class="val" id="metric-f1">--</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- View: CSV Upload -->
+            <section id="csv-view" class="view-section">
+                <header>
+                    <h1>Offline Dataset Analysis</h1>
+                    <p>Upload historical `.csv` traffic dumps to execute batch anomaly screening.</p>
+                </header>
+                
+                <div class="upload-box glass-panel">
+                    <i class="fa-solid fa-cloud-arrow-up upload-icon"></i>
+                    <h3>Drag & Drop Dataset Here</h3>
+                    <p>or</p>
+                    <input type="file" id="csv-file" accept=".csv" class="hidden-input">
+                    <button class="btn-primary" onclick="document.getElementById('csv-file').click()">Browse Files</button>
+                    <p id="file-name" class="mt-2"></p>
+                    <button id="btn-upload" class="btn-success mt-2 hidden"><i class="fa-solid fa-server"></i> Process File</button>
+                </div>
+
+                <div id="upload-results" class="results-panel glass-panel hidden">
+                    <h3>Analysis Complete</h3>
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <h3>Total Rows</h3>
+                            <div class="val" id="r-total">0</div>
+                        </div>
+                        <div class="metric-card">
+                            <h3>Normal Traffic</h3>
+                            <div class="val" id="r-normal">0</div>
+                        </div>
+                        <div class="metric-card danger">
+                            <h3>Anomalies Found</h3>
+                            <div class="val text-danger" id="r-anomalies">0</div>
+                        </div>
+                    </div>
+                </div>
+
+            </section>
+
+        </main>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
