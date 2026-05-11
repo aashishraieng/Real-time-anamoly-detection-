@@ -67,5 +67,11 @@ def upload_csv():
         
     return jsonify({"error": "Invalid file type. Must be .csv"}), 400
 
+from a2wsgi import ASGIMiddleware
+
+# Wrap the Flask app with ASGIMiddleware to make it ASGI-compatible for uvicorn
+asgi_app = ASGIMiddleware(app)
+
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    import uvicorn
+    uvicorn.run("main:asgi_app", host="0.0.0.0", port=5000, reload=True)
